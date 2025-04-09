@@ -1,15 +1,26 @@
 import React from 'react';
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { format } from 'date-fns';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+
+// Add enums to match backend
+enum TransactionType {
+  Expense = 0,
+  Income = 1
+}
+
+enum RecurringPeriod {
+  Monthly = 0,
+  Quarterly = 1,
+  Yearly = 2
+}
 
 interface Transaction {
   id: number;
   description: string;
   amount: number;
   date: string;
-  type: 'Income' | 'Expense';
+  type: TransactionType;
   isRecurring: boolean;
-  recurringPeriod?: 'Monthly' | 'Quarterly' | 'Yearly';
+  recurringPeriod?: RecurringPeriod;
 }
 
 interface MonthlyReportProps {
@@ -21,30 +32,12 @@ interface MonthlyReportProps {
   balance: number;
 }
 
-const sanitizeAmount = (amount: number): string => {
-  if (typeof amount !== 'number' || isNaN(amount)) {
-    return '$0.00';
-  }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount);
+const getTransactionTypeText = (type: TransactionType): string => {
+  return TransactionType[type];
 };
 
-const sanitizeDate = (dateStr: string): string => {
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date');
-    }
-    return format(date, 'MMM dd, yyyy');
-  } catch {
-    return 'Invalid date';
-  }
-};
-
-const sanitizeText = (text: string): string => {
-  return text.replace(/<[^>]*>/g, '').trim();
+const getRecurringPeriodText = (period: RecurringPeriod): string => {
+  return RecurringPeriod[period];
 };
 
 export const MonthlyReport: React.FC<MonthlyReportProps> = ({
@@ -55,12 +48,25 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
   totalExpenses,
   balance
 }) => {
-  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(year, month - 1));
+  const sanitizeDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const sanitizeText = (text: string): string => {
+    return text.replace(/<[^>]*>/g, '').trim();
+  };
+
+  const sanitizeAmount = (amount: number): string => {
+    return amount.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    });
+  };
 
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h5" gutterBottom>
-        Monthly Report - {monthName} {year}
+        Monthly Report - {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
       </Typography>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
@@ -92,7 +98,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {Array.isArray(transactions) ? (
+            {Array.isArray(transactions) && transactions.length > 0 ? (
               transactions.map((transaction) => (
                 <TableRow
                   key={transaction.id}
@@ -100,12 +106,12 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
                 >
                   <TableCell>{sanitizeDate(transaction.date)}</TableCell>
                   <TableCell>{sanitizeText(transaction.description)}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell align="right" sx={{ color: transaction.type === 'Income' ? 'success.main' : 'error.main' }}>
+                  <TableCell>{getTransactionTypeText(transaction.type)}</TableCell>
+                  <TableCell align="right" sx={{ color: transaction.type === TransactionType.Income ? 'success.main' : 'error.main' }}>
                     {sanitizeAmount(transaction.amount)}
                   </TableCell>
                   <TableCell>
-                    {transaction.isRecurring ? `Yes (${transaction.recurringPeriod})` : 'No'}
+                    {transaction.isRecurring ? `Yes (${getRecurringPeriodText(transaction.recurringPeriod!)})` : 'No'}
                   </TableCell>
                 </TableRow>
               ))

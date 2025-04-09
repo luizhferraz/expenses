@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TextField, Button, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox, Box, FormHelperText } from '@mui/material';
+import { TextField, Button, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox, Box } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -14,14 +14,26 @@ interface ValidationErrors {
   date?: string;
 }
 
+// Add enums to match backend
+enum TransactionType {
+  Expense = 0,
+  Income = 1
+}
+
+enum RecurringPeriod {
+  Monthly = 0,
+  Quarterly = 1,
+  Yearly = 2
+}
+
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) => {
   const [transaction, setTransaction] = useState({
     description: '',
     amount: '',
     date: new Date(),
-    type: 'Expense',
+    type: TransactionType.Expense,
     isRecurring: false,
-    recurringPeriod: 'Monthly'
+    recurringPeriod: RecurringPeriod.Monthly
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -80,7 +92,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
     const sanitizedTransaction = {
       ...transaction,
       description: sanitizeInput(transaction.description),
-      amount: parseFloat(transaction.amount)
+      amount: Number(transaction.amount).toFixed(2), // Format as decimal
+      date: transaction.date.toISOString(), // Format date as ISO string
+      type: Number(transaction.type), // Ensure type is sent as a number
+      recurringPeriod: transaction.isRecurring ? Number(transaction.recurringPeriod) : null // Send null if not recurring
     };
 
     onSubmit(sanitizedTransaction);
@@ -89,9 +104,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
       description: '',
       amount: '',
       date: new Date(),
-      type: 'Expense',
+      type: TransactionType.Expense,
       isRecurring: false,
-      recurringPeriod: 'Monthly'
+      recurringPeriod: RecurringPeriod.Monthly
     });
     setErrors({});
     setTouched({});
@@ -144,11 +159,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
         <InputLabel>Type</InputLabel>
         <Select
           value={transaction.type}
-          onChange={(e) => setTransaction({ ...transaction, type: e.target.value })}
+          onChange={(e) => setTransaction({ ...transaction, type: Number(e.target.value) })}
           label="Type"
         >
-          <MenuItem value="Expense">Expense</MenuItem>
-          <MenuItem value="Income">Income</MenuItem>
+          <MenuItem value={TransactionType.Expense}>Expense</MenuItem>
+          <MenuItem value={TransactionType.Income}>Income</MenuItem>
         </Select>
       </FormControl>
       <FormControlLabel
@@ -165,12 +180,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
           <InputLabel>Recurring Period</InputLabel>
           <Select
             value={transaction.recurringPeriod}
-            onChange={(e) => setTransaction({ ...transaction, recurringPeriod: e.target.value })}
+            onChange={(e) => setTransaction({ ...transaction, recurringPeriod: Number(e.target.value) })}
             label="Recurring Period"
           >
-            <MenuItem value="Monthly">Monthly</MenuItem>
-            <MenuItem value="Quarterly">Quarterly</MenuItem>
-            <MenuItem value="Yearly">Yearly</MenuItem>
+            <MenuItem value={RecurringPeriod.Monthly}>Monthly</MenuItem>
+            <MenuItem value={RecurringPeriod.Quarterly}>Quarterly</MenuItem>
+            <MenuItem value={RecurringPeriod.Yearly}>Yearly</MenuItem>
           </Select>
         </FormControl>
       )}
