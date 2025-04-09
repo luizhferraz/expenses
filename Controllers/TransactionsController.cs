@@ -24,14 +24,17 @@ public class TransactionsController : ControllerBase
     {
         try
         {
-            return await _context.Transactions
+            _logger.LogInformation("Getting all transactions");
+            var transactions = await _context.Transactions
                 .OrderByDescending(t => t.Date)
                 .ToListAsync();
+            _logger.LogInformation("Retrieved {Count} transactions", transactions.Count);
+            return transactions;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving transactions");
-            return StatusCode(500, "An error occurred while retrieving transactions");
+            return StatusCode(500, new { error = "An error occurred while retrieving transactions", details = ex.Message });
         }
     }
 
@@ -40,14 +43,19 @@ public class TransactionsController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Getting monthly report for {Month}/{Year}", month, year);
+            
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state for monthly report request");
                 return BadRequest(ModelState);
             }
 
             var transactions = await _context.Transactions
                 .Where(t => t.Date.Year == year && t.Date.Month == month)
                 .ToListAsync();
+
+            _logger.LogInformation("Found {Count} transactions for {Month}/{Year}", transactions.Count, month, year);
 
             var totalIncome = transactions
                 .Where(t => t.Type == TransactionType.Income)
@@ -71,7 +79,7 @@ public class TransactionsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating monthly report for {Month}/{Year}", month, year);
-            return StatusCode(500, "An error occurred while generating the monthly report");
+            return StatusCode(500, new { error = "An error occurred while generating the monthly report", details = ex.Message });
         }
     }
 
@@ -80,8 +88,11 @@ public class TransactionsController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Creating new transaction: {@Transaction}", transaction);
+
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state for transaction creation");
                 return BadRequest(ModelState);
             }
 
@@ -89,15 +100,19 @@ public class TransactionsController : ControllerBase
             {
                 if (!transaction.RecurringPeriod.HasValue)
                 {
+                    _logger.LogWarning("Recurring period is required for recurring transactions");
                     ModelState.AddModelError("RecurringPeriod", "Recurring period is required for recurring transactions");
                     return BadRequest(ModelState);
                 }
 
                 if (!transaction.RecurrenceCount.HasValue || transaction.RecurrenceCount.Value < 1)
                 {
+                    _logger.LogWarning("Invalid recurrence count");
                     ModelState.AddModelError("RecurrenceCount", "Recurrence count is required and must be at least 1");
                     return BadRequest(ModelState);
                 }
+
+                _logger.LogInformation("Creating recurring transaction with {Count} occurrences", transaction.RecurrenceCount.Value);
 
                 // Create the initial transaction
                 _context.Transactions.Add(transaction);
@@ -130,13 +145,13 @@ public class TransactionsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Transaction(s) created: {Id}", transaction.Id);
+            _logger.LogInformation("Transaction(s) created successfully with ID: {Id}", transaction.Id);
             return CreatedAtAction(nameof(GetTransactions), new { id = transaction.Id }, transaction);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating transaction");
-            return StatusCode(500, "An error occurred while creating the transaction");
+            return StatusCode(500, new { error = "An error occurred while creating the transaction", details = ex.Message });
         }
     }
 
@@ -185,22 +200,30 @@ public class TransactionsController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Attempting to delete transaction with ID: {Id}", id);
+            
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null)
             {
-                return NotFound();
+                _logger.LogWarning("Transaction with ID {Id} not found", id);
+                return NotFound(new { error = $"Transaction with ID {id} not found" });
             }
 
             _context.Transactions.Remove(transaction);
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Transaction deleted: {Id}", id);
-
+            
+            _logger.LogInformation("Transaction deleted successfully: {Id}", id);
             return NoContent();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogError(ex, "Concurrency error while deleting transaction {Id}", id);
+            return StatusCode(500, new { error = "A concurrency error occurred while deleting the transaction", details = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting transaction {Id}", id);
-            return StatusCode(500, "An error occurred while deleting the transaction");
+            return StatusCode(500, new { error = "An error occurred while deleting the transaction", details = ex.Message });
         }
     }
 
