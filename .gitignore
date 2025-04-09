@@ -1,0 +1,40 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+.vs/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+*.cache
+*.log
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# React
+client/node_modules/
+client/.pnp
+client/.pnp.js
+client/coverage/
+client/build/
+client/.DS_Store
+client/.env.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
