@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Box, Typography, Alert, Snackbar } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { ptBR } from 'date-fns/locale';
 import { TransactionForm } from './components/TransactionForm';
 import { MonthlyReport } from './components/MonthlyReport';
 import axios from 'axios';
@@ -38,7 +39,7 @@ class ErrorBoundary extends React.Component<
       return (
         <Box sx={{ p: 3 }}>
           <Alert severity="error">
-            Something went wrong. Please refresh the page and try again.
+            Algo deu errado. Por favor, atualize a página e tente novamente.
           </Alert>
         </Box>
       );
@@ -69,7 +70,7 @@ function App() {
       setMonthlyData(response.data);
       setError(null);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while fetching data';
+      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao buscar os dados';
       setError(errorMessage);
       console.error('Error fetching monthly report:', error);
     }
@@ -81,9 +82,21 @@ function App() {
       fetchMonthlyReport();
       setError(null);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while adding transaction';
+      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao adicionar a transação';
       setError(errorMessage);
       console.error('Error adding transaction:', error);
+    }
+  };
+
+  const handleDeleteTransaction = async (id: number) => {
+    try {
+      await api.delete(`/transactions/${id}`);
+      fetchMonthlyReport();
+      setError(null);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao excluir a transação';
+      setError(errorMessage);
+      console.error('Error deleting transaction:', error);
     }
   };
 
@@ -93,11 +106,11 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
         <Container maxWidth="md">
           <Box sx={{ mt: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom>
-              Family Expense Tracker
+              Controle de Despesas Familiar
             </Typography>
             
             <TransactionForm onSubmit={handleAddTransaction} />
@@ -109,6 +122,7 @@ function App() {
               totalIncome={monthlyData.totalIncome}
               totalExpenses={monthlyData.totalExpenses}
               balance={monthlyData.balance}
+              onDeleteTransaction={handleDeleteTransaction}
             />
 
             <Snackbar 

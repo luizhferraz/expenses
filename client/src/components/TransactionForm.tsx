@@ -42,17 +42,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
   const validateField = (name: string, value: any): string => {
     switch (name) {
       case 'description':
-        if (!value.trim()) return 'Description is required';
-        if (value.length < 3) return 'Description must be at least 3 characters';
-        if (value.length > 200) return 'Description must be less than 200 characters';
+        if (!value.trim()) return 'A descrição é obrigatória';
+        if (value.length < 3) return 'A descrição deve ter pelo menos 3 caracteres';
+        if (value.length > 200) return 'A descrição deve ter menos de 200 caracteres';
         return '';
       case 'amount':
-        if (!value) return 'Amount is required';
-        if (isNaN(value) || parseFloat(value) <= 0) return 'Amount must be greater than 0';
+        if (!value) return 'O valor é obrigatório';
+        if (isNaN(value) || parseFloat(value) <= 0) return 'O valor deve ser maior que 0';
         return '';
       case 'date':
-        if (!value) return 'Date is required';
-        if (!(value instanceof Date) || isNaN(value.getTime())) return 'Invalid date';
+        if (!value) return 'A data é obrigatória';
+        if (!(value instanceof Date) || isNaN(value.getTime())) return 'Data inválida';
         return '';
       default:
         return '';
@@ -117,7 +117,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
       <TextField
         fullWidth
         margin="normal"
-        label="Description"
+        label="Descrição"
         value={transaction.description}
         onChange={(e) => handleInputChange('description', e.target.value)}
         onBlur={() => setTouched(prev => ({ ...prev, description: true }))}
@@ -129,7 +129,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
       <TextField
         fullWidth
         margin="normal"
-        label="Amount"
+        label="Valor"
         type="number"
         value={transaction.amount}
         onChange={(e) => handleInputChange('amount', e.target.value)}
@@ -142,9 +142,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
       <Box sx={{ my: 2 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
-            label="Date"
+            label="Data"
             value={transaction.date}
             onChange={(newDate) => handleInputChange('date', newDate)}
+            format="dd/MM/yyyy"
             slotProps={{
               textField: {
                 fullWidth: true,
@@ -156,14 +157,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
         </LocalizationProvider>
       </Box>
       <FormControl fullWidth margin="normal">
-        <InputLabel>Type</InputLabel>
+        <InputLabel>Tipo</InputLabel>
         <Select
           value={transaction.type}
           onChange={(e) => setTransaction({ ...transaction, type: Number(e.target.value) })}
-          label="Type"
+          label="Tipo"
         >
-          <MenuItem value={TransactionType.Expense}>Expense</MenuItem>
-          <MenuItem value={TransactionType.Income}>Income</MenuItem>
+          <MenuItem value={TransactionType.Expense}>Despesa</MenuItem>
+          <MenuItem value={TransactionType.Income}>Receita</MenuItem>
         </Select>
       </FormControl>
       <FormControlLabel
@@ -173,19 +174,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
             onChange={(e) => setTransaction({ ...transaction, isRecurring: e.target.checked })}
           />
         }
-        label="Is Recurring"
+        label="É recorrente"
       />
       {transaction.isRecurring && (
         <FormControl fullWidth margin="normal">
-          <InputLabel>Recurring Period</InputLabel>
+          <InputLabel>Período de Recorrência</InputLabel>
           <Select
             value={transaction.recurringPeriod}
             onChange={(e) => setTransaction({ ...transaction, recurringPeriod: Number(e.target.value) })}
-            label="Recurring Period"
+            label="Período de Recorrência"
           >
-            <MenuItem value={RecurringPeriod.Monthly}>Monthly</MenuItem>
-            <MenuItem value={RecurringPeriod.Quarterly}>Quarterly</MenuItem>
-            <MenuItem value={RecurringPeriod.Yearly}>Yearly</MenuItem>
+            <MenuItem value={RecurringPeriod.Monthly}>Mensal</MenuItem>
+            <MenuItem value={RecurringPeriod.Quarterly}>Trimestral</MenuItem>
+            <MenuItem value={RecurringPeriod.Yearly}>Anual</MenuItem>
           </Select>
         </FormControl>
       )}
@@ -196,7 +197,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit }) =>
         style={{ marginTop: 16 }}
         disabled={Object.values(errors).some(error => error)}
       >
-        Add Transaction
+        Adicionar Transação
       </Button>
     </form>
   );

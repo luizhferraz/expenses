@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 // Add enums to match backend
 enum TransactionType {
@@ -30,6 +31,7 @@ interface MonthlyReportProps {
   totalIncome: number;
   totalExpenses: number;
   balance: number;
+  onDeleteTransaction: (id: number) => void;
 }
 
 const getTransactionTypeText = (type: TransactionType): string => {
@@ -46,10 +48,16 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
   transactions,
   totalIncome,
   totalExpenses,
-  balance
+  balance,
+  onDeleteTransaction
 }) => {
   const sanitizeDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString();
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   const sanitizeText = (text: string): string => {
@@ -57,31 +65,31 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
   };
 
   const sanitizeAmount = (amount: number): string => {
-    return amount.toLocaleString('en-US', {
+    return amount.toLocaleString('pt-BR', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'BRL'
     });
   };
 
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h5" gutterBottom>
-        Monthly Report - {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
+        Relatório Mensal - {new Date(year, month - 1).toLocaleString('pt-BR', { month: 'long' })} {year}
       </Typography>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
         <Paper sx={{ p: 2, flex: 1, bgcolor: 'success.light', color: 'white' }}>
-          <Typography variant="subtitle2">Total Income</Typography>
+          <Typography variant="subtitle2">Receita Total</Typography>
           <Typography variant="h6">{sanitizeAmount(totalIncome)}</Typography>
         </Paper>
         
         <Paper sx={{ p: 2, flex: 1, bgcolor: 'error.light', color: 'white' }}>
-          <Typography variant="subtitle2">Total Expenses</Typography>
+          <Typography variant="subtitle2">Despesa Total</Typography>
           <Typography variant="h6">{sanitizeAmount(totalExpenses)}</Typography>
         </Paper>
         
         <Paper sx={{ p: 2, flex: 1, bgcolor: balance >= 0 ? 'primary.light' : 'warning.light', color: 'white' }}>
-          <Typography variant="subtitle2">Balance</Typography>
+          <Typography variant="subtitle2">Saldo</Typography>
           <Typography variant="h6">{sanitizeAmount(balance)}</Typography>
         </Paper>
       </Box>
@@ -90,11 +98,12 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell>Recurring</TableCell>
+              <TableCell>Data</TableCell>
+              <TableCell>Descrição</TableCell>
+              <TableCell>Tipo</TableCell>
+              <TableCell align="right">Valor</TableCell>
+              <TableCell>Recorrente</TableCell>
+              <TableCell>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -106,19 +115,30 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
                 >
                   <TableCell>{sanitizeDate(transaction.date)}</TableCell>
                   <TableCell>{sanitizeText(transaction.description)}</TableCell>
-                  <TableCell>{getTransactionTypeText(transaction.type)}</TableCell>
+                  <TableCell>{transaction.type === TransactionType.Income ? 'Receita' : 'Despesa'}</TableCell>
                   <TableCell align="right" sx={{ color: transaction.type === TransactionType.Income ? 'success.main' : 'error.main' }}>
                     {sanitizeAmount(transaction.amount)}
                   </TableCell>
                   <TableCell>
-                    {transaction.isRecurring ? `Yes (${getRecurringPeriodText(transaction.recurringPeriod!)})` : 'No'}
+                    {transaction.isRecurring ? `Sim (${transaction.recurringPeriod === RecurringPeriod.Monthly ? 'Mensal' : 
+                      transaction.recurringPeriod === RecurringPeriod.Quarterly ? 'Trimestral' : 'Anual'})` : 'Não'}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton 
+                      onClick={() => onDeleteTransaction(transaction.id)}
+                      color="error"
+                      size="small"
+                      title="Excluir transação"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} align="center">
-                  No transactions found
+                <TableCell colSpan={6} align="center">
+                  Nenhuma transação encontrada
                 </TableCell>
               </TableRow>
             )}
