@@ -53,16 +53,16 @@ try
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var dbLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     // This will create the database and apply migrations
     await context.Database.MigrateAsync();
-    logger.LogInformation("Database initialized successfully");
+    dbLogger.LogInformation("Database initialized successfully");
 }
 catch (Exception ex)
 {
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred while initializing the database.");
+    var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+    startupLogger.LogError(ex, "An error occurred while initializing the database.");
     throw; // Re-throw to prevent startup if database initialization fails
 }
 
@@ -87,8 +87,8 @@ else
             var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
             if (error != null)
             {
-                var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError(error.Error, "Unhandled exception");
+                var errorLogger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                errorLogger.LogError(error.Error, "Unhandled exception");
                 await context.Response.WriteAsJsonAsync(new { 
                     error = "An unexpected error occurred. Please try again later." 
                 });
@@ -107,7 +107,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Log when the application starts
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Application starting up on http://localhost:5202");
+var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
+appLogger.LogInformation("Application starting up on http://localhost:5202");
 
 await app.RunAsync(); // Using async version for better error handling
