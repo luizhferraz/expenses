@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
-            .SetIsOriginAllowed(_ => true) // Only for development
+            .SetIsOriginAllowed(_ => true)
             .WithExposedHeaders("Content-Disposition"));
 });
 
@@ -35,48 +35,29 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Ensure database is created and migrations are applied
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        // This will create the database if it doesn't exist
+        context.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while creating/migrating the database.");
+        throw;
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    
-    // Ensure database is created in development
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
-        try
-        {
-            var context = services.GetRequiredService<ApplicationDbContext>();
-            context.Database.EnsureCreated();
-        }
-        catch (Exception ex)
-        {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while creating the database.");
-            throw;
-        }
-    }
-}
-else
-{
-    // Production security headers
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
-        context.Response.Headers.Add("X-Frame-Options", "DENY");
-        context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
-        context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
-        context.Response.Headers.Add("Content-Security-Policy", 
-            "default-src 'self'; " +
-            "script-src 'self'; " +
-            "style-src 'self' 'unsafe-inline'; " +
-            "img-src 'self' data:; " +
-            "font-src 'self'; " +
-            "connect-src 'self'");
-        
-        await next();
-    });
 }
 
 // Global exception handler
