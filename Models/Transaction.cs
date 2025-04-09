@@ -23,6 +23,9 @@ public class Transaction
     public bool IsRecurring { get; set; }
 
     public RecurringPeriod? RecurringPeriod { get; set; }
+
+    [Range(1, 60, ErrorMessage = "Recurrence count must be between 1 and 60")]
+    public int? RecurrenceCount { get; set; }
 }
 
 public enum TransactionType

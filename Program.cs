@@ -7,7 +7,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+    // Enable detailed errors in development
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableDetailedErrors();
+        options.EnableSensitiveDataLogging();
+    }
+});
 
 // Configure CORS with more restrictive policy
 builder.Services.AddCors(options =>
@@ -36,21 +44,22 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Ensure database is created and migrations are applied
-using (var scope = app.Services.CreateScope())
+try
 {
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        // This will create the database if it doesn't exist
-        context.Database.EnsureCreated();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while creating/migrating the database.");
-        throw;
-    }
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    
+    // This will create the database and apply migrations
+    await context.Database.MigrateAsync();
+    
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Database initialized successfully");
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occurred while initializing the database.");
+    throw; // Re-throw to prevent startup if database initialization fails
 }
 
 // Configure the HTTP request pipeline.
@@ -58,26 +67,31 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    
+    // In development, use more detailed error responses
+    app.UseDeveloperExceptionPage();
 }
-
-// Global exception handler
-app.UseExceptionHandler(errorApp =>
+else
 {
-    errorApp.Run(async context =>
+    // Global exception handler for production
+    app.UseExceptionHandler(errorApp =>
     {
-        context.Response.StatusCode = 500;
-        context.Response.ContentType = "application/json";
-        var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-        if (error != null)
+        errorApp.Run(async context =>
         {
-            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError(error.Error, "Unhandled exception");
-            await context.Response.WriteAsJsonAsync(new { 
-                error = "An unexpected error occurred. Please try again later." 
-            });
-        }
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "application/json";
+            var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+            if (error != null)
+            {
+                var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogError(error.Error, "Unhandled exception");
+                await context.Response.WriteAsJsonAsync(new { 
+                    error = "An unexpected error occurred. Please try again later." 
+                });
+            }
+        });
     });
-});
+}
 
 app.UseHttpsRedirection();
 
@@ -88,4 +102,4 @@ app.UseCors("AllowReactApp");
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run();
+await app.RunAsync(); // Using async version for better error handling

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Box, Typography, Alert, Snackbar } from '@mui/material';
+import { Container, Box, Typography, Alert, Snackbar, Tabs, Tab } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import { TransactionForm } from './components/TransactionForm';
 import { MonthlyReport } from './components/MonthlyReport';
 import axios from 'axios';
+import { startOfMonth, addMonths, format } from 'date-fns';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -50,24 +51,32 @@ class ErrorBoundary extends React.Component<
 }
 
 function App() {
-  const [currentDate] = useState(new Date());
-  const [monthlyData, setMonthlyData] = useState({
-    transactions: [],
-    totalIncome: 0,
-    totalExpenses: 0,
-    balance: 0
-  });
+  const [selectedDate, setSelectedDate] = useState(startOfMonth(new Date()));
+  const [monthlyDataMap, setMonthlyDataMap] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMonthlyReport = async () => {
+  // Generate array of dates for 6 months in the past and 6 months in the future
+  const monthTabs = Array.from({ length: 13 }, (_, i) => addMonths(selectedDate, i - 6));
+
+  const handleCurrentDateClick = () => {
+    setSelectedDate(startOfMonth(new Date()));
+  };
+
+  const fetchMonthlyReport = async (date: Date) => {
+    const key = format(date, 'yyyy-MM');
+    if (monthlyDataMap[key]) return;
+
     try {
       const response = await api.get('/transactions/monthly-report', {
         params: {
-          year: currentDate.getFullYear(),
-          month: currentDate.getMonth() + 1
+          year: date.getFullYear(),
+          month: date.getMonth() + 1
         }
       });
-      setMonthlyData(response.data);
+      setMonthlyDataMap(prev => ({
+        ...prev,
+        [key]: response.data
+      }));
       setError(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao buscar os dados';
@@ -79,7 +88,8 @@ function App() {
   const handleAddTransaction = async (transaction: any) => {
     try {
       await api.post('/transactions', transaction);
-      fetchMonthlyReport();
+      // Refresh data for the current month
+      fetchMonthlyReport(selectedDate);
       setError(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao adicionar a transação';
@@ -91,7 +101,8 @@ function App() {
   const handleDeleteTransaction = async (id: number) => {
     try {
       await api.delete(`/transactions/${id}`);
-      fetchMonthlyReport();
+      // Refresh data for the current month
+      fetchMonthlyReport(selectedDate);
       setError(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro ao excluir a transação';
@@ -101,8 +112,15 @@ function App() {
   };
 
   useEffect(() => {
-    fetchMonthlyReport();
-  }, [currentDate]);
+    fetchMonthlyReport(selectedDate);
+  }, [selectedDate]);
+
+  const currentMonthData = monthlyDataMap[format(selectedDate, 'yyyy-MM')] || {
+    transactions: [],
+    totalIncome: 0,
+    totalExpenses: 0,
+    balance: 0
+  };
 
   return (
     <ErrorBoundary>
@@ -112,17 +130,37 @@ function App() {
             <Typography variant="h4" component="h1" gutterBottom>
               Controle de Despesas Familiar
             </Typography>
-            
+
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs 
+                value={monthTabs.findIndex(date => 
+                  format(date, 'yyyy-MM') === format(selectedDate, 'yyyy-MM')
+                )}
+                onChange={(_, newValue) => setSelectedDate(monthTabs[newValue])}
+                variant="scrollable"
+                scrollButtons="auto"
+                aria-label="Meses"
+              >
+                {monthTabs.map((date) => (
+                  <Tab 
+                    key={format(date, 'yyyy-MM')}
+                    label={format(date, 'MMM yyyy', { locale: ptBR })}
+                  />
+                ))}
+              </Tabs>
+            </Box>
+
             <TransactionForm onSubmit={handleAddTransaction} />
             
             <MonthlyReport
-              month={currentDate.getMonth() + 1}
-              year={currentDate.getFullYear()}
-              transactions={monthlyData.transactions}
-              totalIncome={monthlyData.totalIncome}
-              totalExpenses={monthlyData.totalExpenses}
-              balance={monthlyData.balance}
+              month={selectedDate.getMonth() + 1}
+              year={selectedDate.getFullYear()}
+              transactions={currentMonthData.transactions}
+              totalIncome={currentMonthData.totalIncome}
+              totalExpenses={currentMonthData.totalExpenses}
+              balance={currentMonthData.balance}
               onDeleteTransaction={handleDeleteTransaction}
+              onCurrentDateClick={handleCurrentDateClick}
             />
 
             <Snackbar 

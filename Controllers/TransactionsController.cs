@@ -85,16 +85,52 @@ public class TransactionsController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            if (transaction.IsRecurring && !transaction.RecurringPeriod.HasValue)
+            if (transaction.IsRecurring)
             {
-                ModelState.AddModelError("RecurringPeriod", "Recurring period is required for recurring transactions");
-                return BadRequest(ModelState);
+                if (!transaction.RecurringPeriod.HasValue)
+                {
+                    ModelState.AddModelError("RecurringPeriod", "Recurring period is required for recurring transactions");
+                    return BadRequest(ModelState);
+                }
+
+                if (!transaction.RecurrenceCount.HasValue || transaction.RecurrenceCount.Value < 1)
+                {
+                    ModelState.AddModelError("RecurrenceCount", "Recurrence count is required and must be at least 1");
+                    return BadRequest(ModelState);
+                }
+
+                // Create the initial transaction
+                _context.Transactions.Add(transaction);
+
+                // Create future transactions based on recurrence settings
+                for (int i = 1; i < transaction.RecurrenceCount.Value; i++)
+                {
+                    var futureTransaction = new Transaction
+                    {
+                        Description = transaction.Description,
+                        Amount = transaction.Amount,
+                        Type = transaction.Type,
+                        IsRecurring = true,
+                        RecurringPeriod = transaction.RecurringPeriod,
+                        Date = transaction.RecurringPeriod switch
+                        {
+                            RecurringPeriod.Monthly => transaction.Date.AddMonths(i),
+                            RecurringPeriod.Quarterly => transaction.Date.AddMonths(i * 3),
+                            RecurringPeriod.Yearly => transaction.Date.AddYears(i),
+                            _ => throw new ArgumentException("Invalid recurring period")
+                        }
+                    };
+                    _context.Transactions.Add(futureTransaction);
+                }
+            }
+            else
+            {
+                _context.Transactions.Add(transaction);
             }
 
-            _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Transaction created: {Id}", transaction.Id);
+            _logger.LogInformation("Transaction(s) created: {Id}", transaction.Id);
             return CreatedAtAction(nameof(GetTransactions), new { id = transaction.Id }, transaction);
         }
         catch (Exception ex)

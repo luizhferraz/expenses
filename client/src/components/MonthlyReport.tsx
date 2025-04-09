@@ -1,6 +1,27 @@
-import React from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton } from '@mui/material';
+import React, { useState, useMemo } from 'react';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  IconButton,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Button
+} from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import TodayIcon from '@mui/icons-material/Today';
 
 // Add enums to match backend
 enum TransactionType {
@@ -32,15 +53,8 @@ interface MonthlyReportProps {
   totalExpenses: number;
   balance: number;
   onDeleteTransaction: (id: number) => void;
+  onCurrentDateClick?: () => void;
 }
-
-const getTransactionTypeText = (type: TransactionType): string => {
-  return TransactionType[type];
-};
-
-const getRecurringPeriodText = (period: RecurringPeriod): string => {
-  return RecurringPeriod[period];
-};
 
 export const MonthlyReport: React.FC<MonthlyReportProps> = ({
   month,
@@ -49,8 +63,63 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
   totalIncome,
   totalExpenses,
   balance,
-  onDeleteTransaction
+  onDeleteTransaction,
+  onCurrentDateClick
 }) => {
+  const [filters, setFilters] = useState({
+    date: null as Date | null,
+    description: '',
+    type: 'all',
+    minAmount: '',
+    maxAmount: '',
+    isRecurring: 'all'
+  });
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      
+      // Date filter
+      if (filters.date && !isSameDay(transactionDate, filters.date)) {
+        return false;
+      }
+
+      // Description filter
+      if (filters.description && !transaction.description.toLowerCase().includes(filters.description.toLowerCase())) {
+        return false;
+      }
+
+      // Type filter
+      if (filters.type !== 'all' && transaction.type !== Number(filters.type)) {
+        return false;
+      }
+
+      // Amount filter
+      const minAmount = filters.minAmount ? parseFloat(filters.minAmount) : null;
+      const maxAmount = filters.maxAmount ? parseFloat(filters.maxAmount) : null;
+      
+      if (minAmount !== null && transaction.amount < minAmount) {
+        return false;
+      }
+      if (maxAmount !== null && transaction.amount > maxAmount) {
+        return false;
+      }
+
+      // Recurring filter
+      if (filters.isRecurring !== 'all' && transaction.isRecurring !== (filters.isRecurring === 'true')) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [transactions, filters]);
+
+  const isSameDay = (date1: Date, date2: Date) => {
+    return date1.getDate() === date2.getDate() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getFullYear() === date2.getFullYear();
+  };
+
   const sanitizeDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
@@ -73,9 +142,19 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        Relatório Mensal - {new Date(year, month - 1).toLocaleString('pt-BR', { month: 'long' })} {year}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h5">
+          Relatório Mensal - {new Date(year, month - 1).toLocaleString('pt-BR', { month: 'long' })} {year}
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<TodayIcon />}
+          onClick={onCurrentDateClick}
+          size="small"
+        >
+          Data Atual
+        </Button>
+      </Box>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
         <Paper sx={{ p: 2, flex: 1, bgcolor: 'success.light', color: 'white' }}>
@@ -94,6 +173,71 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
         </Paper>
       </Box>
 
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Filtrar por Data"
+            value={filters.date}
+            onChange={(newDate) => setFilters(prev => ({ ...prev, date: newDate }))}
+            format="dd/MM/yyyy"
+            slotProps={{
+              textField: { size: 'small' }
+            }}
+          />
+        </LocalizationProvider>
+
+        <TextField
+          label="Filtrar Descrição"
+          value={filters.description}
+          onChange={(e) => setFilters(prev => ({ ...prev, description: e.target.value }))}
+          size="small"
+        />
+
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Tipo</InputLabel>
+          <Select
+            value={filters.type}
+            label="Tipo"
+            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value={TransactionType.Income}>Receita</MenuItem>
+            <MenuItem value={TransactionType.Expense}>Despesa</MenuItem>
+          </Select>
+        </FormControl>
+
+        <TextField
+          label="Valor Mínimo"
+          value={filters.minAmount}
+          onChange={(e) => setFilters(prev => ({ ...prev, minAmount: e.target.value }))}
+          type="number"
+          size="small"
+          inputProps={{ min: 0, step: "0.01" }}
+        />
+
+        <TextField
+          label="Valor Máximo"
+          value={filters.maxAmount}
+          onChange={(e) => setFilters(prev => ({ ...prev, maxAmount: e.target.value }))}
+          type="number"
+          size="small"
+          inputProps={{ min: 0, step: "0.01" }}
+        />
+
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Recorrente</InputLabel>
+          <Select
+            value={filters.isRecurring}
+            label="Recorrente"
+            onChange={(e) => setFilters(prev => ({ ...prev, isRecurring: e.target.value }))}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="true">Sim</MenuItem>
+            <MenuItem value="false">Não</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -107,8 +251,8 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {Array.isArray(transactions) && transactions.length > 0 ? (
-              transactions.map((transaction) => (
+            {filteredTransactions.length > 0 ? (
+              filteredTransactions.map((transaction) => (
                 <TableRow
                   key={transaction.id}
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
